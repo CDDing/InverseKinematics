@@ -113,6 +113,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>freeglut.lib;glew32.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Users\user\OneDrive\문서\GitHub\Computer_Graphics\GC\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -132,13 +133,20 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="homework.cpp" />
+    <ClCompile Include="homework.cpp">
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\user\OneDrive\문서\GitHub\Computer_Graphics\GC\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="FragmentShader_Gouraud.txt" />
     <Text Include="FragmentShader_Phong.txt" />
     <Text Include="VertexShader_Gouraud.txt" />
     <Text Include="VertexShader_Phong.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Bone.h" />
+    <ClInclude Include="BoneTree.h" />
+    <ClInclude Include="IK.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
