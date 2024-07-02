@@ -1,0 +1,29 @@
+#version 400 core
+in vec3 vtxPosition;
+in vec3 inNormal;
+in vec3 a_Color;
+out vec3 v_Color;
+out vec3 v_Normal;
+out vec3 v_Pos;
+uniform vec3 DLightDir;
+uniform vec3 PLightPos;
+uniform mat4 trans;
+uniform mat4 worldinv;
+uniform mat4 projmat;
+uniform mat4 viewMat;
+uniform mat4 worldMat;
+void main()
+{	
+	vec4 vPos=vec4(vtxPosition,1.0);
+	vPos=viewMat*worldMat*vPos;
+	v_Pos=vec3(vPos);
+	v_Normal=mat3(transpose(inverse(viewMat*worldMat)))*inNormal;
+
+
+
+	v_Color=a_Color;
+	gl_Position=projmat*vPos;
+
+
+
+}

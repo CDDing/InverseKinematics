@@ -1,0 +1,16 @@
+#version 400 core
+
+in vec3 v_Color;
+out vec4 FragColor;
+
+uniform vec3 DLightDir;
+uniform vec3 PLightPos;
+uniform mat4 trans;
+uniform mat4 worldinv;
+uniform mat4 projmat;
+uniform mat4 viewMat;
+uniform mat4 worldMat;
+void main()
+{
+	FragColor=vec4(v_Color,1.0);
+}

@@ -1,0 +1,61 @@
+#version 400 core
+in vec3 vtxPosition;
+in vec3 inNormal;
+in vec3 a_Color;
+out vec3 v_Color;
+uniform vec3 DLightDir;
+uniform vec3 PLightPos;
+uniform mat4 trans;
+uniform mat4 worldinv;
+uniform mat4 projmat;
+uniform mat4 viewMat;
+uniform mat4 worldMat;
+vec3 CalcDLight(vec3 DLDir,vec3 normal){
+	vec3 lightDir=normalize(DLDir);
+	vec3 reflectDir=reflect(-lightDir,normal);
+
+	vec3 ambient = 0.05*a_Color;
+	vec3 diffuse = max(dot(normal,lightDir),0.0)*a_Color;
+	vec3 specular=pow(max(dot(normal,reflectDir),0.0),10)*vec3(1.0,1.0,1.0);
+
+
+	return ambient+diffuse+specular;
+}
+vec3 CalcPLight(vec3 PLPos,vec3 vPos,vec3 normal,vec3 ViewDir){
+	vec3 lightDir=normalize(PLPos-vPos);
+	vec3 reflectDir=normalize(reflect(-lightDir,normal));
+
+	vec3 ambient=0.05*a_Color;
+	vec3 diffuse = max(dot(lightDir,normal),0.0)*a_Color;
+	vec3 specular = pow(max(dot(normal,reflectDir),0.0),10)*vec3(0.0,1.0,0.0);
+
+		float distance=length(PLPos-vPos);
+	float attenuation = 263/(distance*distance);
+
+	return attenuation*(ambient+diffuse+specular);
+}
+void main()
+{	
+	//각 변수 초기화
+	v_Color=vec3(0.0,0.0,0.0);
+	vec4 vPos=vec4(vtxPosition,1.0);
+	vPos=viewMat*worldMat*vPos;
+
+	//노말 벡터 처리
+	vec3 Normal=mat3(transpose(inverse(viewMat*worldMat)))*inNormal;
+	vec3 tNorm=normalize(Normal.xyz);
+	vec4 tDLightDir=viewMat*vec4(DLightDir,0.0);
+	vec3 viewDir=normalize(-vPos.xyz);
+
+	//방향성 조명 처리
+	
+	v_Color+=CalcDLight(tDLightDir.xyz,tNorm);//max(dot(DLightPos.xyz,tNorm.xyz),0.0)*a_Color;
+	
+	//점 조명 처리
+	vec4 tPLightPos=viewMat*vec4(PLightPos,0.0);
+	v_Color+=CalcPLight(tPLightPos.xyz,vPos.xyz,tNorm,viewDir);
+
+	gl_Position=projmat*vPos;
+
+
+}
