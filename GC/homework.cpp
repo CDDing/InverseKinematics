@@ -23,22 +23,14 @@ float wheel = 1, dragx = 1, dragy = 1, dragz = 1;
 int mouse_prev_x = 0, mouse_prev_y = 0;
 int mouse_dx = 0, mouse_dy = 0;
 float targetx=0, targety=0, targetz=0;
-BoneTree* tree;
-void initBoneTree() {
-	Bone* Root = new Bone(glm::vec3(0, 0, 0), glm::vec3(1, 0, 0));
-	tree = new BoneTree(Root);
-	for (int i = 0; i < 19; i++) {
-		Bone* bone = new Bone(glm::vec3(0, 0, 0), glm::vec3(1, 0, 0));
-		tree->pushBone(bone);
-	}
+Bone* Root;
+int CurrentHumanoid=Humanoid::Nothing;
+void ConnectBone(Bone* parent, Bone* child) {
+	parent->child.push_back(child);
+	child->parent = parent;
+	child->center = parent->center + 0.5f * parent->length *glm::normalize(parent->direction) + 0.5f * child->length*glm::normalize(child->direction);
 }
-
-float GetRadianBetweenVector(glm::vec3 a, glm::vec3 b) {
-	float lengthab = glm::length(a) * glm::length(b);
-
-	return glm::acos(glm::dot(a, b) / lengthab);
-}
-
+vector<Bone*> humanoid;//0 : 왼팔, 1 : 오른팔, 2: 왼다리, 3: 오른다리
 void setVec3(const GLuint ID, const std::string& name, const glm::vec3& value)
 {
 	glUniform3fv(glGetUniformLocation(ID, name.c_str()), 1, &value[0]);
@@ -52,6 +44,63 @@ std::ostream& operator<<(std::ostream& os, const glm::vec3& vec) {
 	os << "glm::vec3(" << vec.x << ", " << vec.y << ", " << vec.z << ")";
 	return os;
 }
+void initBoneTree() {
+	Root = new Bone(glm::vec3(0, 3, 0), glm::vec3(0, -1, 0),1.0f);
+	Bone* temp = Root;
+	for (int i = 0; i < 3; i++) {
+		Bone* bone = new Bone(glm::vec3(0, 0, 0), glm::vec3(0, -1, 0),1.0f);
+		ConnectBone(temp, bone);
+		temp = bone;
+	}//머리
+
+	Bone* body = temp;
+	for (int i = 0; i < 6; i++) {
+		Bone* bone = new Bone(glm::vec3(0, 0, 0), glm::vec3(-1, 0, 0), 1.0f);
+		ConnectBone(temp, bone);
+		temp = bone;
+	}//왼팔
+	humanoid.push_back(body->child[0]);
+
+	temp = body;
+	for (int i = 0; i < 6; i++) {
+		Bone* bone = new Bone(glm::vec3(0, 0, 0), glm::vec3(1, 0, 0), 1.0f);
+		ConnectBone(temp, bone);
+		temp=bone;
+	}//오른팔
+	humanoid.push_back(body->child[1]);
+
+	temp = body;
+	for (int i = 0; i < 9; i++) {
+		Bone* bone = new Bone(glm::vec3(0, 0, 0), glm::vec3(0, -1, 0), 1.0f);
+		ConnectBone(temp, bone);
+		temp = bone;
+	}//몸통
+
+	Bone* bodyend = temp;
+	for (int i = 0; i < 12; i++) {
+		Bone* bone = new Bone(glm::vec3(0, 0, 0), glm::vec3(-1, -1, 0), 1.0f);
+		ConnectBone(temp, bone);
+		temp = bone;
+	}//왼다리
+
+	humanoid.push_back(bodyend->child[0]);
+	temp = bodyend;
+	for (int i = 0; i < 12; i++) {
+		Bone* bone = new Bone(glm::vec3(0, 0, 0), glm::vec3(1, -1, 0), 1.0f);
+		ConnectBone(temp, bone);
+		temp = bone;
+	}//오른다리
+
+	humanoid.push_back(bodyend->child[1]);
+
+}
+
+float GetRadianBetweenVector(glm::vec3 a, glm::vec3 b) {
+	float lengthab = glm::length(a) * glm::length(b);
+
+	return glm::acos(glm::dot(a, b) / lengthab);
+}
+
 GLuint LoadShaders(const char* vertex_file_path, const char* fragment_file_path)
 {
 	//create the shaders
@@ -226,12 +275,15 @@ void drawBoneCube(GLuint* cubeIndices, Bone* bone) {
 	
 	//Bone 위치만큼 이동
 
-	glm::vec3 BoneDirection = glm::normalize(bone->GetEnd() - bone->GetStart());
+	glm::vec3 BoneDirection = glm::normalize(bone->direction);
 	
-	transmatrix = glm::translate(glm::mat4(1.0f), bone->GetStart() + 0.5f*(bone->GetEnd()-bone->GetStart()));
-	transmatrix = glm::rotate(transmatrix, 
-		GetRadianBetweenVector(glm::vec3(0,1,0),BoneDirection),
-		glm::cross(glm::vec3(0,1,0),BoneDirection));//외적해서 해당 벡터에 대해 수직인 각도로 회전
+	transmatrix = glm::translate(glm::mat4(1.0f), bone->center);
+	if (glm::dot(BoneDirection, glm::vec3(0, 1, 0)) != 1 && 
+		glm::dot(BoneDirection, glm::vec3(0, 1, 0)) != - 1) {
+		transmatrix = glm::rotate(transmatrix,
+			GetRadianBetweenVector(glm::vec3(0, 1, 0), BoneDirection),
+			glm::cross(glm::vec3(0, 1, 0), BoneDirection));//외적해서 해당 벡터에 대해 수직인 각도로 회전
+	}
 	transmatrix = glm::scale(transmatrix, glm::vec3(1.0f, bone->length, 1.0f));
 	
 	rotationmatrix = glm::mat4(1.0f);
@@ -341,12 +393,25 @@ void drawTargetCube(GLuint* cubeIndices) {
 	//gluPerspective(fov,aspect,zNear,zFar);
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, cubeIndices);
 
+	
+}
+GLuint cubeTargetIndices[] = {
+	0, 1, 2,   2, 3, 0,
+	 4, 5, 6,   6, 7, 4,
+	8, 9,10,  10,11, 8,
+	12,13,14,  14,15,12,
+	16,17,18,  18,19,16,
+	20,21,22,  22,23,20
+};
 
+void treetraversel(Bone* bone) {
+	drawBoneCube(cubeTargetIndices, bone);
+	for (auto child : bone->child) {
+		treetraversel(child);
+	}
 }
 void renderScene(void)
 {
-
-
 	//Clear all pixels
 	glClearDepth(1.0);
 	//glDepthFunc(GL_LESS);
@@ -354,36 +419,26 @@ void renderScene(void)
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
 	//Let's draw something here
-	GLuint cubeTargetIndices[] = {
-	0, 1, 2,   2, 3, 0,
-	 4, 5, 6,   6, 7, 4,
-	8, 9,10,  10,11, 8,
-	12,13,14,  14,15,12,
-	16,17,18,  18,19,16,
-	20,21,22,  22,23,20
-	};
-
+	
 	GLuint BoneIndices[] = {
 	20, 21, 22, 20, 22, 23, // Using the original indices
 	20, 21, 24, 21, 22, 24, // Including the new vertex
 	22, 23, 24, 23, 20, 24  // Including the new vertex
 	};
 	drawTargetCube(cubeTargetIndices);
-	Bone* tmp = tree->GetRoot();
-	IK ik(tree);
-	ik.target = glm::vec3(targetx, targety, targetz);
-	ik.solve();
-	while(tmp){
-		drawBoneCube(cubeTargetIndices,tmp);
-		tmp = tmp->GetChild();
+	Bone* tmp = Root;
+	if (CurrentHumanoid != Humanoid::Nothing) {
+		IK ik(humanoid[CurrentHumanoid]);
+		ik.target = glm::vec3(targetx, targety, targetz);
+		ik.solve();
 	}
+	treetraversel(Root);
 	setVec3(currentProgram, "DLightDir", glm::vec3(sin(double(rotatetheta1)), 3.0f, cos(double(rotatetheta1))));
 	setVec3(currentProgram, "PLightPos", glm::vec3(5 * sin(double(rotatetheta2)), 10.5f, 5 * cos(double(rotatetheta2))));
 
 	//Double buffer
 	glutSwapBuffers();
 }
-
 void init()
 {
 	//initilize the glew and check the errors.
@@ -488,10 +543,19 @@ void myKeyboard(unsigned char i, int x, int y) {
 		cout << 5 * sin(double(rotatetheta2)) << 10.5f << 5 * cos(double(rotatetheta2));
 	}
 	else if (i == '1') {
-		currentProgram = programID;
+		CurrentHumanoid = Humanoid::LeftArm;
 	}
 	else if (i == '2') {
-		currentProgram = programID2;
+		CurrentHumanoid = Humanoid::RightArm;
+	}
+	else if (i == '3') {
+		CurrentHumanoid = Humanoid::LeftLeg;
+	}
+	else if (i == '4') {
+		CurrentHumanoid = Humanoid::RightLeg;
+	}
+	else if (i == '5') {
+		CurrentHumanoid = Humanoid::Nothing;
 	}
 	else if (i == ' ') {
 		isstop = !isstop;

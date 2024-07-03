@@ -1,81 +1,74 @@
 #pragma once
 #include <queue>
 #include <stack>
-#include "BoneTree.h"
+#include "Bone.h"
 class IK {
 public:
 	float bias = 0.01f;
 	glm::vec3 target;
-	BoneTree* tree;
+	Bone* root;
 	
-	IK(BoneTree* BT);
+	IK(Bone* _root);
 
 	void solve();
 };
 
-IK::IK(BoneTree* BT) {
-	tree = BT;
+IK::IK(Bone* _root) {
+	root=_root;
 }
 void IK::solve() {
-	std::stack<Bone*> q;
-	Bone* tmp = tree->GetRoot();
+	std::stack<Bone*> st;
+	Bone* tmp = root;
 	float length = 0;
-	while (tmp) {
-		q.push(tmp);
+	while (true) {
+		st.push(tmp);
 		length += tmp->length;
-		tmp = tmp->GetChild();
-		
+		if (tmp->child.empty()) break;
+		tmp = tmp->child[0];
 	}
-	std::cout << length<<"\n";
-	if (glm::length((tree->GetRoot()->GetStart() - target))> length) { //Bone들 길이의 총 합이 Target과의 거리보다 짧은 경우
-		glm::vec3 direction = target - tree->GetRoot()->GetStart();
-		Bone* order = tree->GetRoot();
-		glm::vec3 position(0, 0, 0);
-		while (order) {
-			order->SetDirect(direction);
-			order->SetPosition(position);
-			position = order->GetEnd();
-			order = order->GetChild();
+	if (glm::length(root->GetStart() - target) > length) {
+		glm::vec3 direction = glm::normalize(target - root->GetStart());
+		Bone* order = root;
+		glm::vec3 position(root->GetStart());
+		while (true) {
+			order->direction = direction;
+			order->center = position + 0.5f*direction * order->length;
+			position =order->GetEnd();
+			if (order->child.empty()) break;
+			order = order->child[0];
 		}
 	}
 	else {
-		//Stage 1
-		
-		Bone* order = tree->GetTail();
-		glm::vec3 rememstart = tree->GetRoot()->GetStart();
+		Bone* tail = st.top();
+		Bone* order = st.top();
+		glm::vec3 rememstart = root->GetStart();
 		glm::vec3 temp = target;
-
-		
-
-		while (glm::length(tree->GetRoot()->GetStart() - rememstart) > bias||
-			glm::length(tree->GetTail()->GetEnd()-target)>bias) {
+		while (glm::length(root->GetStart() - rememstart) > bias ||
+			glm::length(tail->GetEnd()  - target) > bias) {
 			while (order) {
 				float length = order->length;
 				auto direction = temp - order->GetStart();
-				order->SetDirect(direction);
-				order->SetPosition(temp - length * glm::normalize(direction));
+				order->direction = direction;
+				order->center=(temp - 0.5f * length * glm::normalize(direction));
+				if (order == root) break;
 				temp = order->GetStart();
-				order = order->GetParent();
+				order = order->parent;
 			}
-			
-			if (glm::length(tree->GetRoot()->GetStart() - rememstart) < bias) { //시작지점이 크게 바뀌지 않았으면 끝
+			if (glm::length(root->GetStart() - rememstart) < bias) {
 				break;
 			}
 
-			//아닐경우 시작지점부터 끝지점까지 다시 순회
-
-			order = tree->GetRoot();
+			order = root;
 			temp = rememstart;
-			while (order) {
+			while (true) {
 				float length = order->length;
 				auto direction = order->GetEnd() - temp;
-				order->SetDirect(direction);
-				order->SetPosition(temp);
+				order->direction = direction;
+				order->center = (temp + 0.5f * length * glm::normalize(direction));
 				temp = order->GetEnd();
-				order = order->GetChild();
+				if (order->child.empty()) break;
+				order = order->child[0];
 			}
 		}
-
-
 	}
 }

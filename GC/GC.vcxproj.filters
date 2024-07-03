@@ -40,8 +40,5 @@
     <ClInclude Include="IK.h">
       <Filter>소스 파일</Filter>
     </ClInclude>
-    <ClInclude Include="BoneTree.h">
-      <Filter>소스 파일</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>
